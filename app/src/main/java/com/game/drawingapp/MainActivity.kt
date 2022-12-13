@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.media.MediaScannerConnection
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
@@ -34,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private var drawingView : DrawingView? = null
     private var mImageButtonCurrentPaint: ImageButton? =
         null // A variable for current color is picked from color pallet.
+    var customProgressDialog : Dialog? =null
 
     val openGallaryLauncher : ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         ib_save.setOnClickListener{
+            showProgressDialog()
             if(isReadStorageAllowed()) {
                 lifecycleScope.launch{
                     val flDrawingView : FrameLayout = findViewById(R.id.fl_drawing_view_container)
@@ -144,10 +147,12 @@ class MainActivity : AppCompatActivity() {
                     result = f.absolutePath
 
                     runOnUiThread{
+                        cancelProgressDialog()
                         if(result.isNotEmpty()) {
                             Toast.makeText(this@MainActivity,
                                             "File saved successfully",
                                             Toast.LENGTH_LONG).show()
+                            shareImage(result)
                         } else {
                             Toast.makeText(this@MainActivity,
                                 "something went wrong while saving the file",
@@ -180,6 +185,24 @@ class MainActivity : AppCompatActivity() {
         view.draw(canvas)
 
         return returnedBitmap;
+    }
+
+    private fun showProgressDialog() {
+        customProgressDialog = Dialog(this)
+
+        /*set the screen content from a layout resouce.
+          The resouce will be inflated , adding all top-level views to the screen.*/
+        customProgressDialog?.setContentView(R.layout.dialog_custom_progress)
+
+        //start dialog and display it on screen
+        customProgressDialog?.show()
+    }
+
+    private fun cancelProgressDialog() {
+        if(customProgressDialog != null) {
+            customProgressDialog?.dismiss()
+            customProgressDialog = null
+        }
     }
 
 
@@ -267,6 +290,17 @@ class MainActivity : AppCompatActivity() {
 
             //Current view is updated with selected view in the form of ImageButton.
             mImageButtonCurrentPaint = view
+        }
+    }
+
+    private fun shareImage(result: String) {
+        MediaScannerConnection.scanFile(this, arrayOf(result),null) {
+            path,uri ->
+            val shareIntent = Intent()
+            shareIntent.action = Intent.ACTION_SEND
+            shareIntent.putExtra(Intent.EXTRA_STREAM,uri)
+            shareIntent.type = "image/png"
+            startActivity(Intent.createChooser(shareIntent,"Share"))
         }
     }
 }
